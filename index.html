@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>شجرة عائلة ال حويت بكفر هلال</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js" async></script>
+    <!-- مكتبة SheetJS (ممكن نستغنى عنها لو هتعتمد على JSON بس، لكن سبتها احتياطي لتصدير الـ CSV) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --glass-bg: rgba(255, 255, 255, 0.08);
@@ -45,8 +46,8 @@
         .toolbar { display: flex; gap: 10px; padding: 10px 25px; z-index: 10; align-items: center; flex-wrap: wrap; }
         .tool-group { display: flex; gap: 10px; }
         
-        button, .file-label { background: var(--glass-bg); color: #fff; border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.9rem;}
-        button:hover, .file-label:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+        button { background: var(--glass-bg); color: #fff; border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.9rem;}
+        button:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
         button.primary { background: var(--accent); border-color: var(--accent-hover); }
         button.danger { background: var(--danger); border-color: #dc2626; }
         button.ghost { background: transparent; border: 1px dashed var(--accent); color: var(--accent); }
@@ -67,7 +68,7 @@
         .info-value { color: #fff; font-weight: bold; max-width: 65%; text-align: left; word-break: break-word;}
         .lineage-box { background: rgba(16, 185, 129, 0.1); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); font-size: 0.85rem; line-height: 1.6; color: #fff; margin-bottom: 15px; }
 
-        /* Nodes & Edges (Lightweight for Speed) */
+        /* Nodes & Edges */
         .node-group { cursor: pointer; }
         .node-group.admin-drag { cursor: move; }
         .node-shape { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; transition: stroke-width 0.2s, stroke 0.2s; }
@@ -130,10 +131,9 @@
         <!-- المسؤول فقط -->
         <div class="tool-group" id="adminTools" style="display: none;">
             <button id="adminDashBtn" style="background: #8b5cf6;">🔔 الطلبات <span id="reqBadge"></span></button>
-            <label class="file-label ghost" for="importFile">📂 استيراد CSV</label>
-            <input type="file" id="importFile" accept=".csv,.txt,.json" hidden>
+            <!-- تم إزالة زر الاستيراد للزوار، ويترك تصدير JSON للمسؤول لاستخدامه في تحديث ملف الجيت هاب -->
             <button id="exportCsvBtn" class="ghost">📎 تصدير CSV</button>
-            <button id="exportJsonBtn" class="ghost">📄 تصدير JSON</button>
+            <button id="exportJsonBtn" class="ghost">📄 حفظ و تحميل JSON</button>
         </div>
     </div>
 
@@ -287,12 +287,11 @@
                     <div class="form-group" style="flex:1;"><label>تكبير/تصغير الخلية</label><input type="number" id="genScale" step="0.1" value="1"></div>
                     <div class="form-group" style="flex:1;"><label>حجم الخط</label><input type="number" id="genFontSize" value="14"></div>
                 </div>
-                <!-- زر التطبيق للمعاينة فقط -->
                 <button type="button" class="ghost" onclick="applyGenStyles()" style="width: 100%; justify-content: center; margin-top: 10px;">تطبيق اللون والحجم (للمعاينة)</button>
             </div>
 
             <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button type="button" class="danger" onclick="closeModal('settingsModal'); loadData();" style="flex: 1; justify-content: center;">إلغاء التعديلات</button>
+                <button type="button" class="danger" onclick="closeModal('settingsModal'); renderTree();" style="flex: 1; justify-content: center;">إلغاء التعديلات</button>
                 <button type="button" class="primary" onclick="saveAllSettings()" style="flex: 2; justify-content: center;">💾 حفظ جميع الإعدادات نهائياً</button>
             </div>
             <button class="danger" style="position: absolute; top: 10px; left: 10px; border-radius: 50%; padding: 5px 10px;" onclick="closeModal('settingsModal')">X</button>
@@ -323,7 +322,6 @@
             baseFontSize: 14
         };
 
-        // الحسابات الثابتة (Hardcoded Users)
         const SYSTEM_USERS = {
             'magwait':  { role: 'admin', pass: '@mg2208!QAZ' },
             'lateef74': { role: 'supervisor', pass: '@LAT12345678' },
@@ -334,27 +332,20 @@
         const DB = {
             init: () => {
                 try {
-                    if (!localStorage.getItem('fam_nodes')) localStorage.setItem('fam_nodes', JSON.stringify([]));
-                    // فرض الحسابات الثابتة دائماً
                     localStorage.setItem('fam_users', JSON.stringify(SYSTEM_USERS));
-                    
                     if (!localStorage.getItem('fam_requests')) localStorage.setItem('fam_requests', JSON.stringify([]));
                     if (!localStorage.getItem('fam_settings')) localStorage.setItem('fam_settings', JSON.stringify(appSettings));
                     else appSettings = JSON.parse(localStorage.getItem('fam_settings'));
                 } catch(e) { console.error("DB Init Error", e); }
             },
-            getNodes: () => { try { return JSON.parse(localStorage.getItem('fam_nodes')) || []; } catch(e) { return []; } },
-            setNodes: (nodes) => localStorage.setItem('fam_nodes', JSON.stringify(nodes)),
+            getNodes: () => { return nodesData; }, // بنقرا من الرام مباشرة لأننا بنعمل fetch
+            setNodes: (nodes) => { nodesData = nodes; }, 
             saveNode: (node) => {
-                let nodes = DB.getNodes();
-                const idx = nodes.findIndex(n => n.id === node.id);
-                if (idx > -1) nodes[idx] = {...nodes[idx], ...node}; else nodes.push(node);
-                DB.setNodes(nodes);
+                const idx = nodesData.findIndex(n => n.id === node.id);
+                if (idx > -1) nodesData[idx] = {...nodesData[idx], ...node}; else nodesData.push(node);
             },
             deleteNode: (id) => {
-                let nodes = DB.getNodes();
-                nodes = nodes.filter(n => n.id !== id).map(n => n.fatherId === id ? {...n, fatherId: ""} : n);
-                DB.setNodes(nodes);
+                nodesData = nodesData.filter(n => n.id !== id).map(n => n.fatherId === id ? {...n, fatherId: ""} : n);
             },
             getRequests: () => JSON.parse(localStorage.getItem('fam_requests')) || [],
             addRequest: (req) => {
@@ -380,7 +371,29 @@
         function openModal(id) { document.getElementById(id).classList.add('active'); }
 
         // ==========================================
-        // 2. نظام تسجيل الدخول (بدون واتساب)
+        // 2. سحب البيانات من السيرفر (GitHub)
+        // ==========================================
+        async function fetchFamilyData() {
+            try {
+                // إضافة متغير زمني لمنع الكاش والتأكد من جلب أحدث نسخة دائماً
+                const response = await fetch('family_tree.json?v=' + Date.now());
+                if (response.ok) {
+                    nodesData = await response.json();
+                } else {
+                    console.warn("لم يتم العثور على ملف family_tree.json على السيرفر. (قم بتصدير الملف ورفعه أول مرة)");
+                    // في حالة عدم وجود الملف لسه، نفتح بشجرة فاضية أو لوكال
+                    nodesData = JSON.parse(localStorage.getItem('fam_nodes_backup')) || [];
+                }
+            } catch (error) {
+                console.error("خطأ في الاتصال بالملف:", error);
+                nodesData = JSON.parse(localStorage.getItem('fam_nodes_backup')) || [];
+            }
+            renderTree();
+            setTimeout(fitToView, 200);
+        }
+
+        // ==========================================
+        // 3. نظام تسجيل الدخول (بدون واتساب)
         // ==========================================
         document.getElementById('authBtn').onclick = () => {
             if (currentUser) { currentUser = null; updateAuthUI(); showToast("تم تسجيل الخروج"); closeSidebar(); } 
@@ -443,18 +456,17 @@
                 sbAdminActions.style.display = 'none';
             }
             
-            // تحديث نافذة الإعدادات لتطابق البيانات المحفوظة
             document.getElementById('bgSelect').value = appSettings.bgStyle;
             document.getElementById('lineSelect').value = appSettings.lineStyle;
             document.getElementById('maleShape').value = appSettings.maleShape;
             document.getElementById('femaleShape').value = appSettings.femaleShape;
             document.getElementById('baseFontSize').value = appSettings.baseFontSize;
             changeBackground();
-            loadData();
+            renderTree();
         }
 
         // ==========================================
-        // 3. الهامش الجانبي وتحديد الذرية
+        // 4. الهامش الجانبي وتحديد الذرية
         // ==========================================
         function getGeneration(id) { let depth = 1, curr = nodesData.find(n => n.id === id); while (curr && curr.fatherId) { depth++; curr = nodesData.find(n => n.id === curr.fatherId); } return depth; }
         function getChildrenCount(id) { return nodesData.filter(n => n.fatherId === id).length; }
@@ -523,11 +535,11 @@
                 toProcess.push(...children);
             }
             renderTree();
-            showToast(`تم تحديد ${multiSelectedIds.size} شخص (جاهزين للسحب والتحريك معا)`);
+            showToast(`تم تحديد ${multiSelectedIds.size} شخص بنجاح (اسحبهم معاً)`);
         }
 
         // ==========================================
-        // 4. المحرك السريع للرسم (String-Based SVG)
+        // 5. المحرك السريع للرسم (String-Based SVG)
         // ==========================================
         function fitToView() {
             if (nodesData.length === 0) return;
@@ -553,13 +565,10 @@
             updateTransform();
         }
 
-        function loadData() { nodesData = DB.getNodes(); renderTree(); }
-
         function renderTree() {
             let edgesHTML = "";
             let nodesHTML = "";
 
-            // رسم الخطوط
             nodesData.forEach(node => {
                 if (node.fatherId) {
                     const father = nodesData.find(n => n.id === node.fatherId);
@@ -577,12 +586,11 @@
                 }
             });
 
-            // رسم الخلايا
             nodesData.forEach(node => {
                 const scale = node.nodeScale || 1;
                 const finalFontSize = node.fontSize || appSettings.baseFontSize;
-                
                 const nameStr = node.name || "بدون اسم";
+                
                 const w = Math.max(60, nameStr.length * finalFontSize * 0.65 + 16) * scale;
                 const h = (finalFontSize * 1.5 + 10) * scale;
                 
@@ -619,7 +627,7 @@
         function updateTransform() { transformGroup.setAttribute('transform', `translate(${view.x}, ${view.y}) scale(${view.scale})`); }
 
         // ==========================================
-        // 5. الأحداث المجمعة (Event Delegation)
+        // 6. تفاعل الماوس (تحديد، سحب، تكبير)
         // ==========================================
         let isDraggingCanvas = false, startPan = {x:0, y:0};
         let isDraggingNode = false, dragNodes = [], dragStartPt = {x:0, y:0};
@@ -684,7 +692,8 @@
             const time = Date.now() - dragStartTime;
 
             if (isDraggingNode && dragNodes.length > 0) {
-                dragNodes.forEach(dn => { DB.saveNode(nodesData.find(n => n.id === dn.id)); });
+                // لو كنا في مود الإدمن هنحفظ في اللوكال ستوريدج (كـ Cache) ولكن الفعلي بيتحفظ لما نعمل تصدير ونرفع السيرفر.
+                localStorage.setItem('fam_nodes_backup', JSON.stringify(nodesData));
                 isDraggingNode = false; dragNodes = [];
                 renderTree(); 
             }
@@ -714,7 +723,7 @@
         document.getElementById('fitView').onclick = fitToView;
 
         // ==========================================
-        // 6. البحث المتطور
+        // 7. البحث والتنقل الذكي (أسهم)
         // ==========================================
         const searchInput = document.getElementById('searchInput');
         const searchNav = document.getElementById('searchNav');
@@ -759,7 +768,7 @@
         document.getElementById('prevSearch').onclick = () => { if(searchMatches.length) { currentSearchIndex = (currentSearchIndex - 1 + searchMatches.length) % searchMatches.length; updateSearchUI(); }};
 
         // ==========================================
-        // 7. الإضافة والتعديل والطلبات
+        // 8. الإضافة والتعديل والطلبات
         // ==========================================
         document.getElementById('addNodeBtn').onclick = () => { openNodeForm(null); };
 
@@ -781,8 +790,6 @@
                 document.getElementById('nodeBirth').value = node.birthDate || '';
                 document.getElementById('nodeDeath').value = node.deathDate || '';
                 document.getElementById('nodeNotes').value = node.notes || '';
-                document.getElementById('nodeColor').value = node.leafColor || (node.gender === 'أنثى' ? '#fcd9d9' : '#add7a0');
-                document.getElementById('nodeScale').value = node.nodeScale || 1;
                 document.getElementById('nodeModalTitle').innerText = "تعديل / حذف شخص";
                 delBtn.style.display = 'flex';
             } else {
@@ -800,7 +807,7 @@
             let defX = 0, defY = 0;
             if (fatherId) { const f = nodesData.find(n => n.id === fatherId); if(f) { defX = f.manualX || 0; defY = (f.manualY || 0) + 120; } }
 
-            const nodeData = {
+            const nodeDataObj = {
                 id: id || `p_${Date.now()}`,
                 name: document.getElementById('nodeName').value.trim(),
                 gender: document.getElementById('nodeGender').value,
@@ -809,19 +816,21 @@
                 birthDate: document.getElementById('nodeBirth').value,
                 deathDate: document.getElementById('nodeDeath').value,
                 notes: document.getElementById('nodeNotes').value.trim(),
-                leafColor: document.getElementById('nodeColor').value,
-                nodeScale: parseFloat(document.getElementById('nodeScale').value) || 1,
                 manualX: id ? nodesData.find(n=>n.id===id)?.manualX : defX,
                 manualY: id ? nodesData.find(n=>n.id===id)?.manualY : defY
             };
 
             const existingNode = nodesData.find(n=>n.id===id);
-            if(existingNode && existingNode.fontSize) nodeData.fontSize = existingNode.fontSize;
+            if(existingNode) {
+                nodeDataObj.leafColor = existingNode.leafColor;
+                nodeDataObj.nodeScale = existingNode.nodeScale; 
+                nodeDataObj.fontSize = existingNode.fontSize;
+            }
 
             if (currentUser.role === 'admin') {
-                DB.saveNode(nodeData); loadData(); showToast("✅ تم الحفظ بنجاح"); showSidebarDetails(nodeData.id);
+                DB.saveNode(nodeDataObj); localStorage.setItem('fam_nodes_backup', JSON.stringify(nodesData)); renderTree(); showToast("✅ تم الحفظ بنجاح"); showSidebarDetails(nodeDataObj.id);
             } else {
-                DB.addRequest({ type: id ? 'edit' : 'add', data: nodeData, by: currentUser.username });
+                DB.addRequest({ type: id ? 'edit' : 'add', data: nodeDataObj, by: currentUser.username });
                 showToast("⏳ تم إرسال الطلب للمسؤول للموافقة");
             }
             closeModal('nodeModal');
@@ -829,7 +838,7 @@
 
         function deleteNodeAction(id) {
             if (currentUser.role === 'admin') {
-                if(confirm('هل أنت متأكد من الحذف النهائي؟')) { DB.deleteNode(id); loadData(); closeModal('nodeModal'); closeSidebar(); showToast("🗑️ تم الحذف"); }
+                if(confirm('هل أنت متأكد من الحذف النهائي؟')) { DB.deleteNode(id); localStorage.setItem('fam_nodes_backup', JSON.stringify(nodesData)); renderTree(); closeModal('nodeModal'); closeSidebar(); showToast("🗑️ تم الحذف"); }
             } else {
                 DB.addRequest({ type: 'delete', targetId: id, by: currentUser.username });
                 closeModal('nodeModal'); showToast("⏳ تم إرسال طلب الحذف");
@@ -837,7 +846,7 @@
         }
         
         // ==========================================
-        // 8. إعدادات الضبط (للأجيال والشكل العام)
+        // 9. إعدادات الضبط (للأجيال والشكل العام)
         // ==========================================
         document.getElementById('settingsBtn').onclick = () => {
             document.getElementById('bgSelect').value = appSettings.bgStyle;
@@ -891,7 +900,7 @@
             DB.saveSettings();
             
             if (currentUser?.role === 'admin') {
-                DB.setNodes(nodesData);
+                localStorage.setItem('fam_nodes_backup', JSON.stringify(nodesData));
             }
             
             renderTree();
@@ -900,7 +909,7 @@
         }
 
         // ==========================================
-        // 9. لوحة طلبات المسؤول
+        // 10. لوحة طلبات المسؤول
         // ==========================================
         function checkRequests() {
             if (currentUser?.role !== 'admin') return;
@@ -919,77 +928,23 @@
             const req = DB.getRequests().find(r => r.reqId === reqId);
             if(req) {
                 if (req.type === 'add' || req.type === 'edit') DB.saveNode(req.data); else if (req.type === 'delete') DB.deleteNode(req.targetId);
-                DB.removeRequest(reqId); loadData(); checkRequests(); document.getElementById('adminDashBtn').click(); showToast("✅ تم الاعتماد");
+                DB.removeRequest(reqId); renderTree(); localStorage.setItem('fam_nodes_backup', JSON.stringify(nodesData)); checkRequests(); document.getElementById('adminDashBtn').click(); showToast("✅ تم الاعتماد");
             }
         };
         window.rejectReq = (reqId) => { DB.removeRequest(reqId); checkRequests(); document.getElementById('adminDashBtn').click(); showToast("❌ تم الرفض"); };
 
         // ==========================================
-        // 10. الاستيراد والتصدير
+        // 11. تصدير ملفات الجيت هاب
         // ==========================================
-        document.getElementById("importFile").addEventListener("change", function(e) {
-            if (currentUser?.role !== 'admin') return;
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            
-            reader.onload = function(event) {
-                const text = event.target.result;
-                const delimiter = text.includes(';') ? ';' : ',';
-                const lines = text.split('\n');
-                const headers = lines[0].split(delimiter).map(h => h.trim().replace(/["\r]/g, ''));
-                
-                const newData = [];
-                for(let i=1; i<lines.length; i++) {
-                    if(!lines[i].trim()) continue;
-                    const regex = new RegExp(`(?!\\s*$)\\s*(?:'([^'\\\\]*(?:\\\\[\\s\\S][^'\\\\]*)*)'|"([^"\\\\]*(?:\\\\[\\s\\S][^"\\\\]*)*)"|([^${delimiter}\\s\\\\]*(?:\\s+[^${delimiter}\\s\\\\]+)*))\\s*(?:${delimiter}|$)`, 'g');
-                    let match; const row = [];
-                    while ((match = regex.exec(lines[i])) !== null) { row.push(match[1] || match[2] || match[3] || ''); if (match.index === regex.lastIndex) regex.lastIndex++; }
-                    
-                    let obj = {};
-                    headers.forEach((h, index) => { obj[h] = row[index] ? row[index].trim() : ""; });
-                    
-                    if(obj.name || obj['الاسم']) {
-                        newData.push({
-                            id: obj.id || `imp_${Date.now()}_${i}`,
-                            name: obj.name || obj['الاسم'] || "",
-                            gender: obj.gender || "ذكر",
-                            fatherId: obj.fatherId || "",
-                            branch: obj.branch || "",
-                            birthDate: obj.birthDate || "",
-                            deathDate: obj.deathDate || "",
-                            notes: obj.notes || "",
-                            leafColor: obj.leafColor || "",
-                            nodeScale: parseFloat(obj.nodeScale) || 1,
-                            fontSize: parseFloat(obj.fontSize) || appSettings.baseFontSize,
-                            manualX: parseFloat(obj.manualX || obj.X || obj.x) || (Math.random() * 500),
-                            manualY: parseFloat(obj.manualY || obj.Y || obj.y) || (Math.random() * 500)
-                        });
-                    }
-                }
-                
-                if (confirm(`تم العثور على ${newData.length} سجل في الملف. استبدال الشجرة بالكامل؟ (اختر 'إلغاء' للدمج)`)) {
-                    DB.setNodes(newData);
-                } else {
-                    DB.setNodes([...nodesData, ...newData]);
-                }
-                loadData(); fitToView(); showToast(`✅ تم الاستيراد بنجاح`);
-            };
-            reader.readAsText(file, 'UTF-8'); 
-            e.target.value = "";
-        });
-
-        document.getElementById("exportCsvBtn").onclick = () => {
-            const cols = ["id", "name", "gender", "fatherId", "branch", "birthDate", "deathDate", "notes", "leafColor", "nodeScale", "fontSize", "manualX", "manualY"];
-            const csv = "\uFEFF" + cols.join(",") + "\n" + nodesData.map(n => cols.map(c => `"${String(n[c] ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-            const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "family_tree.csv"; a.click(); showToast("تم تصدير CSV");
-        };
         document.getElementById("exportJsonBtn").onclick = () => {
-            const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(nodesData, null, 2)], { type: "application/json;charset=utf-8" })); a.download = "family_tree_backup.json"; a.click(); showToast("📄 تم تصدير نسخة JSON");
+            // هذا الزر يقوم بتحميل الداتا الحالية عشان المسئول يرفعها على جيت هاب
+            const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(nodesData, null, 2)], { type: "application/json;charset=utf-8" })); a.download = "family_tree.json"; a.click(); showToast("📄 تم تحميل ملف الـ JSON ارفعه الآن إلى GitHub");
         };
 
         document.getElementById("printBtn").onclick = () => window.print();
 
-        window.onload = () => { updateAuthUI(); setTimeout(fitToView, 200); };
+        // التشغيل المبدئي واستدعاء الداتا من السيرفر
+        window.onload = () => { updateAuthUI(); fetchFamilyData(); };
     </script>
 </body>
 </html>
