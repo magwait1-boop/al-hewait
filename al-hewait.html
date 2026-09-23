@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شجرة عائلة ال حويت بكفر هلال</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js" async></script>
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #e2e8f0;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --danger: #ef4444;
+            --line-color: rgba(255,255,255,0.3);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+        
+        body { color: var(--text-main); height: 100vh; overflow: hidden; display: flex; flex-direction: column; transition: 0.5s; }
+        .bg-default { background: radial-gradient(circle at 50% 50%, #1e293b, #0f172a); }
+        .bg-grid { background-color: #0f172a; background-image: linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 30px 30px; }
+        .bg-dots { background-color: #0f172a; background-image: radial-gradient(rgba(255,255,255,0.1) 2px, transparent 2px); background-size: 25px 25px; }
+        
+        .glass { background: var(--glass-bg); backdrop-filter: blur(12px); border: 1px solid var(--glass-border); border-radius: 16px; }
+        .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border-bottom: 1px solid var(--glass-border); }
+
+        /* Header */
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px 25px; z-index: 20; flex-wrap: wrap; gap: 15px;}
+        .logo-area h1 { font-size: 1.4rem; font-weight: 900; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+        
+        /* Search */
+        .search-area { position: relative; flex: 1; max-width: 450px; display: flex; align-items: center; gap: 10px;}
+        .search-box { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; padding: 10px 20px; border-radius: 20px; outline: none; transition: 0.3s; font-size: 0.95rem;}
+        .search-box:focus { border-color: var(--accent); background: rgba(0,0,0,0.5); }
+        .search-nav { background: #fbbf24; color: #000; font-weight: bold; font-size: 0.85rem; padding: 4px 10px; border-radius: 20px; display: none; align-items: center; gap: 8px; white-space: nowrap;}
+        .search-nav button { background: rgba(0,0,0,0.1); border: none; padding: 2px 8px; border-radius: 10px; color: #000; cursor: pointer; font-weight: bold;}
+        .search-nav button:hover { background: rgba(0,0,0,0.2); }
+
+        .user-area { display: flex; align-items: center; gap: 10px; }
+        
+        /* Toolbar */
+        .toolbar { display: flex; gap: 10px; padding: 10px 25px; z-index: 10; align-items: center; flex-wrap: wrap; }
+        .tool-group { display: flex; gap: 10px; }
+        
+        button, .file-label { background: var(--glass-bg); color: #fff; border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; gap: 5px; font-size: 0.9rem;}
+        button:hover, .file-label:hover { background: rgba(255,255,255,0.15); transform: translateY(-2px); }
+        button.primary { background: var(--accent); border-color: var(--accent-hover); }
+        button.danger { background: var(--danger); border-color: #dc2626; }
+        button.ghost { background: transparent; border: 1px dashed var(--accent); color: var(--accent); }
+        
+        /* Workspace */
+        .main-workspace { flex: 1; position: relative; overflow: hidden; display: flex; }
+        #svgCanvas { flex: 1; height: 100%; touch-action: none; cursor: grab; }
+        #svgCanvas:active { cursor: grabbing; }
+        
+        /* Sidebar */
+        .sidebar { width: 350px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(25px); border-left: 1px solid var(--glass-border); padding: 25px; display: flex; flex-direction: column; gap: 15px; transform: translateX(-100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); position: absolute; left: 0; top: 0; bottom: 0; z-index: 15; overflow-y: auto; box-shadow: 5px 0 25px rgba(0,0,0,0.5);}
+        .sidebar.active { transform: translateX(0); }
+        .sidebar h2 { color: var(--accent); border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; font-size: 1.4rem; margin-top: 15px;}
+        .info-card { background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 10px; }
+        .info-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 8px; align-items: center;}
+        .info-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0;}
+        .info-label { color: #94a3b8; }
+        .info-value { color: #fff; font-weight: bold; max-width: 65%; text-align: left; word-break: break-word;}
+        .lineage-box { background: rgba(16, 185, 129, 0.1); padding: 15px; border-radius: 12px; border: 1px solid var(--accent); font-size: 0.85rem; line-height: 1.6; color: #fff; margin-bottom: 15px; }
+
+        /* Nodes & Edges (Lightweight for Speed) */
+        .node-group { cursor: pointer; }
+        .node-group.admin-drag { cursor: move; }
+        .node-shape { stroke: rgba(255,255,255,0.3); stroke-width: 1.5; transition: stroke-width 0.2s, stroke 0.2s; }
+        .node-text { fill: #0f172a; font-weight: 900; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+        
+        .node-group:hover .node-shape { stroke-width: 3; stroke: #fff; }
+        .highlight .node-shape { stroke: #fbbf24; stroke-width: 5; filter: drop-shadow(0 0 25px rgba(251,191,36,0.8)); }
+        .selected .node-shape { stroke: #38bdf8; stroke-width: 4; filter: drop-shadow(0 0 15px rgba(56,189,248,0.7)); }
+        .descendant-selected .node-shape { stroke: #c084fc; stroke-width: 4; filter: drop-shadow(0 0 10px rgba(192,132,252,0.6)); }
+        .edge-line { stroke: var(--line-color); stroke-width: 2.5; fill: none; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal-content { width: 90%; max-width: 450px; padding: 30px; display: flex; flex-direction: column; gap: 15px; position: relative; max-height: 90vh; overflow-y: auto;}
+        .modal-content h2 { margin-bottom: 10px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; color: white;}
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 0.85rem; color: #cbd5e1; font-weight: bold;}
+        .form-group input, .form-group select, .form-group textarea { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); color: #fff; padding: 10px; border-radius: 8px; outline: none; font-family: inherit;}
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+        
+        .zoom-ctrls { position: absolute; bottom: 20px; left: 20px; display: flex; gap: 10px; z-index: 50; }
+        .zoom-ctrls button { width: 40px; height: 40px; justify-content: center; border-radius: 50%; font-size: 1.2rem; }
+
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; background: var(--accent); color: white; transform: translateY(100px); opacity: 0; transition: 0.3s; z-index: 2000; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-weight: bold;}
+        .toast.show { transform: translateY(0); opacity: 1; }
+    </style>
+</head>
+<body class="bg-default" id="mainBody">
+
+    <!-- شريط الرأس -->
+    <header class="glass-panel">
+        <div class="logo-area">
+            <h1>🌳 شجرة عائلة ال حويت بكفر هلال</h1>
+        </div>
+        <div class="search-area">
+            <input type="text" id="searchInput" class="search-box" placeholder="ابحث بالاسم بالكامل واضغط Enter...">
+            <div id="searchNav" class="search-nav">
+                <button id="prevSearch">◀</button>
+                <span id="searchCountBadge">0 / 0</span>
+                <button id="nextSearch">▶</button>
+            </div>
+        </div>
+        <div class="user-area">
+            <span id="userInfo" style="font-size: 0.9rem; color: #94a3b8;">زائر (عرض فقط)</span>
+            <button id="authBtn" class="primary">تسجيل الدخول</button>
+        </div>
+    </header>
+
+    <!-- أدوات النظام -->
+    <div class="toolbar glass-panel" id="toolbar">
+        <div class="tool-group">
+            <button id="printBtn">🖨️ طباعة الشجرة</button>
+        </div>
+        <!-- المشرف والمسؤول -->
+        <div class="tool-group" id="editorTools" style="display: none;">
+            <button id="settingsBtn" class="ghost" style="color: white; border-color: white;">⚙️ الضبط والخصائص</button>
+            <button id="addNodeBtn" class="primary">➕ إضافة شخص</button>
+        </div>
+        <!-- المسؤول فقط -->
+        <div class="tool-group" id="adminTools" style="display: none;">
+            <button id="adminDashBtn" style="background: #8b5cf6;">🔔 الطلبات <span id="reqBadge"></span></button>
+            <label class="file-label ghost" for="importFile">📂 استيراد CSV</label>
+            <input type="file" id="importFile" accept=".csv,.txt,.json" hidden>
+            <button id="exportCsvBtn" class="ghost">📎 تصدير CSV</button>
+            <button id="exportJsonBtn" class="ghost">📄 تصدير JSON</button>
+        </div>
+    </div>
+
+    <!-- مساحة الرسم -->
+    <div class="main-workspace" id="workspace">
+        <svg id="svgCanvas">
+            <defs>
+                <filter id="shadow"><feDropShadow dx="0" dy="4" stdDeviation="4" flood-opacity="0.4" flood-color="#000"/></filter>
+            </defs>
+            <g id="transformGroup">
+                <g id="edgesGroup"></g>
+                <g id="nodesGroup"></g>
+            </g>
+        </svg>
+
+        <!-- الهامش الجانبي للخصائص -->
+        <aside class="sidebar" id="detailsSidebar">
+            <button class="danger" style="position: absolute; top: 15px; left: 15px; border-radius: 50%; padding: 5px 10px;" onclick="closeSidebar()">X</button>
+            <h2 id="sbName">اسم الشخص</h2>
+            <div class="info-card">
+                <div class="info-row"><span class="info-label">الفرع / الفخذ:</span> <span class="info-value" id="sbBranch">-</span></div>
+                <div class="info-row"><span class="info-label">النوع:</span> <span class="info-value" id="sbGender">-</span></div>
+                <div class="info-row"><span class="info-label">تاريخ الميلاد:</span> <span class="info-value" id="sbBirth">-</span></div>
+                <div class="info-row"><span class="info-label">تاريخ الوفاة:</span> <span class="info-value" id="sbDeath">-</span></div>
+                <div class="info-row"><span class="info-label">رقم الجيل:</span> <span class="info-value" id="sbGeneration">-</span></div>
+                <div class="info-row"><span class="info-label">الأبناء المباشرين:</span> <span class="info-value" id="sbChildren">-</span></div>
+                <div class="info-row"><span class="info-label">إجمالي الذرية:</span> <span class="info-value" id="sbDescendants">-</span></div>
+                <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 5px;"><span class="info-label">الملاحظات:</span> <span class="info-value" id="sbNotes" style="max-width: 100%; color: #fbbf24; font-weight: normal;">-</span></div>
+            </div>
+            <h3 style="color: #94a3b8; font-size: 1rem;">شجرة النسب (تصاعدياً)</h3>
+            <div class="lineage-box" id="sbLineage"></div>
+            
+            <div id="sidebarEditorActions" style="display: none; flex-direction: column; gap: 10px; margin-top: auto;">
+                <button id="sbEditBtn" class="primary" style="width: 100%; justify-content: center;">✏️ تعديل بيانات الشخص</button>
+                
+                <!-- أزرار المسؤول فقط في الهامش -->
+                <div id="sidebarAdminActions" style="display: none; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; gap: 10px;">
+                        <button id="sbAddChildBtn" class="primary" style="flex: 1; justify-content: center; background: #3b82f6; border-color: #2563eb;">➕ إضافة ابن</button>
+                        <button id="sbDeleteBtn" class="danger" style="flex: 1; justify-content: center;">🗑️ حذف</button>
+                    </div>
+                    <button id="sbSelectDescendantsBtn" class="ghost" style="width: 100%; justify-content: center; background: rgba(16, 185, 129, 0.1);">👨‍👩‍👧‍👦 تحديد الذرية كاملة للسحب</button>
+                </div>
+            </div>
+        </aside>
+
+        <div class="zoom-ctrls">
+            <button id="zoomIn" class="glass">+</button>
+            <button id="zoomOut" class="glass">-</button>
+            <button id="fitView" class="glass" title="توسيط الشجرة">⌂</button>
+        </div>
+    </div>
+
+    <!-- نافذة تسجيل الدخول (كلاسيكية) -->
+    <div id="authModal" class="modal-overlay">
+        <div class="glass modal-content" style="max-width: 400px;">
+            <h2 id="authTitle">تسجيل الدخول</h2>
+            <div class="form-group">
+                <label>اسم المستخدم</label>
+                <input type="text" id="authUsername" placeholder="أدخل اسم المستخدم">
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="authPass" placeholder="أدخل كلمة المرور">
+            </div>
+            <button class="primary" style="margin-top: 15px; width: 100%; justify-content: center;" onclick="verifyLogin()">دخول</button>
+            <button class="danger" style="position: absolute; top: 10px; left: 10px; border-radius: 50%; padding: 5px 10px;" onclick="closeModal('authModal')">X</button>
+        </div>
+    </div>
+
+    <!-- نافذة تعديل بيانات الشخص -->
+    <div id="nodeModal" class="modal-overlay">
+        <div class="glass modal-content">
+            <h2 id="nodeModalTitle">تعديل بيانات الشخص</h2>
+            <form id="nodeForm">
+                <input type="hidden" id="nodeId">
+                <div style="display: flex; gap:10px;">
+                    <div class="form-group" style="flex:2;"><label>الاسم الكامل *</label><input type="text" id="nodeName" required></div>
+                    <div class="form-group" style="flex:1;"><label>النوع</label><select id="nodeGender"><option value="ذكر">ذكر</option><option value="أنثى">أنثى</option></select></div>
+                </div>
+                <div class="form-group"><label>الفرع / الفخذ</label><input type="text" id="nodeBranch"></div>
+                <div class="form-group"><label>الأب</label><select id="nodeFather"></select></div>
+                <div style="display: flex; gap:10px;">
+                    <div class="form-group" style="flex:1;"><label>تاريخ الميلاد</label><input type="date" id="nodeBirth"></div>
+                    <div class="form-group" style="flex:1;"><label>تاريخ الوفاة</label><input type="date" id="nodeDeath"></div>
+                </div>
+                <div class="form-group"><label>ملاحظات</label><textarea id="nodeNotes" rows="2"></textarea></div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <button type="button" class="danger" onclick="closeModal('nodeModal')" style="flex: 1; justify-content: center;">إلغاء</button>
+                    <button type="submit" class="primary" style="flex: 2; justify-content: center;">حفظ التعديلات / إرسال طلب</button>
+                </div>
+            </form>
+            <button class="danger" style="position: absolute; top: 10px; left: 10px; border-radius: 50%; padding: 5px 10px;" onclick="closeModal('nodeModal')">X</button>
+        </div>
+    </div>
+
+    <!-- نافذة الإعدادات (الضبط) -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="glass modal-content">
+            <h2>⚙️ إعدادات النظام والشجرة</h2>
+            
+            <div style="display: flex; gap:10px;">
+                <div class="form-group" style="flex:1;">
+                    <label>خلفية اللوحة</label>
+                    <select id="bgSelect" onchange="changeBackground()">
+                        <option value="bg-default">تدرج لوني (افتراضي)</option>
+                        <option value="bg-grid">شبكة هندسية</option>
+                        <option value="bg-dots">مخطط نقاط</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>شكل خطوط الربط</label>
+                    <select id="lineSelect">
+                        <option value="curve">منحنيات (انسيابي)</option>
+                        <option value="straight">مباشر (مستقيم)</option>
+                        <option value="step">متعامد (هندسي)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex:1;">
+                    <label>شكل خلية الرجال</label>
+                    <select id="maleShape">
+                        <option value="rect">مستطيل بحواف</option>
+                        <option value="pill">كبسولة (دائري)</option>
+                        <option value="ellipse">بيضاوي</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1;">
+                    <label>شكل خلية النساء</label>
+                    <select id="femaleShape">
+                        <option value="ellipse">بيضاوي</option>
+                        <option value="pill">كبسولة (دائري)</option>
+                        <option value="rect">مستطيل بحواف</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>حجم الخط الافتراضي للخلايا (FontSize)</label>
+                <input type="number" id="baseFontSize" value="14" min="8" max="40">
+            </div>
+
+            <div style="margin-top: 15px; padding-top:15px; border-top: 1px dashed var(--glass-border);">
+                <h3 style="color:var(--accent); margin-bottom:10px;">🎨 تخصيص جيل محدد</h3>
+                <div class="form-group"><label>اختر الجيل (لتعديله)</label><select id="genSelect"></select></div>
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1;"><label>لون الخلايا</label><input type="color" id="genColor" value="#add7a0" style="height: 40px; padding:0; width:100%;"></div>
+                    <div class="form-group" style="flex:1;"><label>تكبير/تصغير الخلية</label><input type="number" id="genScale" step="0.1" value="1"></div>
+                    <div class="form-group" style="flex:1;"><label>حجم الخط</label><input type="number" id="genFontSize" value="14"></div>
+                </div>
+                <!-- زر التطبيق للمعاينة فقط -->
+                <button type="button" class="ghost" onclick="applyGenStyles()" style="width: 100%; justify-content: center; margin-top: 10px;">تطبيق اللون والحجم (للمعاينة)</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button type="button" class="danger" onclick="closeModal('settingsModal'); loadData();" style="flex: 1; justify-content: center;">إلغاء التعديلات</button>
+                <button type="button" class="primary" onclick="saveAllSettings()" style="flex: 2; justify-content: center;">💾 حفظ جميع الإعدادات نهائياً</button>
+            </div>
+            <button class="danger" style="position: absolute; top: 10px; left: 10px; border-radius: 50%; padding: 5px 10px;" onclick="closeModal('settingsModal')">X</button>
+        </div>
+    </div>
+
+    <!-- نافذة طلبات المسؤول -->
+    <div id="adminModal" class="modal-overlay">
+        <div class="glass modal-content">
+            <h2>الطلبات المعلقة</h2>
+            <div id="requestsList"></div>
+            <button class="danger" style="position: absolute; top: 10px; left: 10px; border-radius: 50%; padding: 5px 10px;" onclick="closeModal('adminModal')">X</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">رسالة</div>
+
+    <!-- كود الجافاسكريبت المتكامل -->
+    <script>
+        // ==========================================
+        // 1. إدارة الإعدادات والبيانات والمستخدمين
+        // ==========================================
+        let appSettings = { 
+            lineStyle: 'curve', 
+            bgStyle: 'bg-default',
+            maleShape: 'rect',
+            femaleShape: 'ellipse',
+            baseFontSize: 14
+        };
+
+        // الحسابات الثابتة (Hardcoded Users)
+        const SYSTEM_USERS = {
+            'magwait':  { role: 'admin', pass: '@mg2208!QAZ' },
+            'lateef74': { role: 'supervisor', pass: '@LAT12345678' },
+            'hewait18': { role: 'supervisor', pass: '@MAG12345678' },
+            'hewait20': { role: 'supervisor', pass: '@MAG12345678' }
+        };
+
+        const DB = {
+            init: () => {
+                try {
+                    if (!localStorage.getItem('fam_nodes')) localStorage.setItem('fam_nodes', JSON.stringify([]));
+                    // فرض الحسابات الثابتة دائماً
+                    localStorage.setItem('fam_users', JSON.stringify(SYSTEM_USERS));
+                    
+                    if (!localStorage.getItem('fam_requests')) localStorage.setItem('fam_requests', JSON.stringify([]));
+                    if (!localStorage.getItem('fam_settings')) localStorage.setItem('fam_settings', JSON.stringify(appSettings));
+                    else appSettings = JSON.parse(localStorage.getItem('fam_settings'));
+                } catch(e) { console.error("DB Init Error", e); }
+            },
+            getNodes: () => { try { return JSON.parse(localStorage.getItem('fam_nodes')) || []; } catch(e) { return []; } },
+            setNodes: (nodes) => localStorage.setItem('fam_nodes', JSON.stringify(nodes)),
+            saveNode: (node) => {
+                let nodes = DB.getNodes();
+                const idx = nodes.findIndex(n => n.id === node.id);
+                if (idx > -1) nodes[idx] = {...nodes[idx], ...node}; else nodes.push(node);
+                DB.setNodes(nodes);
+            },
+            deleteNode: (id) => {
+                let nodes = DB.getNodes();
+                nodes = nodes.filter(n => n.id !== id).map(n => n.fatherId === id ? {...n, fatherId: ""} : n);
+                DB.setNodes(nodes);
+            },
+            getRequests: () => JSON.parse(localStorage.getItem('fam_requests')) || [],
+            addRequest: (req) => {
+                let reqs = DB.getRequests(); reqs.push({...req, reqId: Date.now().toString()});
+                localStorage.setItem('fam_requests', JSON.stringify(reqs));
+            },
+            removeRequest: (reqId) => {
+                let reqs = DB.getRequests(); localStorage.setItem('fam_requests', JSON.stringify(reqs.filter(r => r.reqId !== reqId)));
+            },
+            saveSettings: () => localStorage.setItem('fam_settings', JSON.stringify(appSettings))
+        };
+        DB.init();
+
+        let currentUser = null, nodesData = [], view = { x: 0, y: 0, scale: 1 };
+        let multiSelectedIds = new Set();
+        let currentSidebarNodeId = null;
+        let searchMatches = [], currentSearchIndex = 0;
+
+        const svgCanvas = document.getElementById('svgCanvas'), transformGroup = document.getElementById('transformGroup'), nodesGroup = document.getElementById('nodesGroup'), edgesGroup = document.getElementById('edgesGroup');
+
+        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+
+        // ==========================================
+        // 2. نظام تسجيل الدخول (بدون واتساب)
+        // ==========================================
+        document.getElementById('authBtn').onclick = () => {
+            if (currentUser) { currentUser = null; updateAuthUI(); showToast("تم تسجيل الخروج"); closeSidebar(); } 
+            else { 
+                document.getElementById('authUsername').value = '';
+                document.getElementById('authPass').value = '';
+                openModal('authModal'); 
+            }
+        };
+
+        function verifyLogin() {
+            const username = document.getElementById('authUsername').value.trim();
+            const pass = document.getElementById('authPass').value.trim();
+            
+            if (!username || !pass) return showToast("برجاء إدخال اسم المستخدم وكلمة المرور");
+
+            let users = JSON.parse(localStorage.getItem('fam_users'));
+            if (users[username] && users[username].pass === pass) {
+                currentUser = { username: username, role: users[username].role };
+                closeModal('authModal');
+                updateAuthUI();
+                showToast(`أهلاً بك، تم تسجيل الدخول بنجاح كـ ${currentUser.role === 'admin' ? 'مسؤول' : 'مشرف'}`);
+            } else {
+                showToast("اسم المستخدم أو كلمة المرور غير صحيحة");
+            }
+        }
+
+        function updateAuthUI() {
+            const adminT = document.getElementById('adminTools');
+            const editorT = document.getElementById('editorTools');
+            const sbEditorActions = document.getElementById('sidebarEditorActions');
+            const sbAdminActions = document.getElementById('sidebarAdminActions');
+            
+            if (currentUser) {
+                document.getElementById('userInfo').innerText = `حساب: ${currentUser.username} (${currentUser.role === 'admin' ? 'مسؤول' : 'مشرف'})`;
+                document.getElementById('authBtn').innerText = "خروج";
+                document.getElementById('authBtn').classList.replace('primary', 'danger');
+                
+                editorT.style.display = 'flex';
+                
+                if(currentUser.role === 'admin') { 
+                    adminT.style.display = 'flex'; checkRequests(); 
+                } else { 
+                    adminT.style.display = 'none';
+                }
+                
+                if (document.getElementById('detailsSidebar').classList.contains('active')) {
+                    sbEditorActions.style.display = 'flex';
+                    if(currentUser.role === 'admin') sbAdminActions.style.display = 'flex';
+                    else sbAdminActions.style.display = 'none';
+                }
+            } else {
+                document.getElementById('userInfo').innerText = "زائر (بحث ومشاهدة فقط)";
+                document.getElementById('authBtn').innerText = "دخول";
+                document.getElementById('authBtn').classList.replace('danger', 'primary');
+                
+                editorT.style.display = 'none';
+                adminT.style.display = 'none';
+                sbEditorActions.style.display = 'none';
+                sbAdminActions.style.display = 'none';
+            }
+            
+            // تحديث نافذة الإعدادات لتطابق البيانات المحفوظة
+            document.getElementById('bgSelect').value = appSettings.bgStyle;
+            document.getElementById('lineSelect').value = appSettings.lineStyle;
+            document.getElementById('maleShape').value = appSettings.maleShape;
+            document.getElementById('femaleShape').value = appSettings.femaleShape;
+            document.getElementById('baseFontSize').value = appSettings.baseFontSize;
+            changeBackground();
+            loadData();
+        }
+
+        // ==========================================
+        // 3. الهامش الجانبي وتحديد الذرية
+        // ==========================================
+        function getGeneration(id) { let depth = 1, curr = nodesData.find(n => n.id === id); while (curr && curr.fatherId) { depth++; curr = nodesData.find(n => n.id === curr.fatherId); } return depth; }
+        function getChildrenCount(id) { return nodesData.filter(n => n.fatherId === id).length; }
+        function getTotalDescendants(id) { let count = 0; const children = nodesData.filter(n => n.fatherId === id); count += children.length; children.forEach(c => { count += getTotalDescendants(c.id); }); return count; }
+        function getLineage(id) { let names = []; let curr = nodesData.find(n => n.id === id); while (curr) { names.push(curr.name); curr = nodesData.find(n => n.id === curr.fatherId); } return names.reverse().join(" ➔ "); }
+
+        function showSidebarDetails(nodeId) {
+            const node = nodesData.find(n => n.id === nodeId);
+            if(!node) return;
+            currentSidebarNodeId = node.id;
+            
+            document.getElementById('sbName').innerText = node.name;
+            document.getElementById('sbBranch').innerText = node.branch || 'الفرع الأساسي';
+            document.getElementById('sbGender').innerText = node.gender || 'ذكر';
+            document.getElementById('sbBirth').innerText = node.birthDate || 'غير مسجل';
+            document.getElementById('sbDeath').innerText = node.deathDate || 'غير مسجل';
+            document.getElementById('sbGeneration').innerText = getGeneration(node.id);
+            document.getElementById('sbChildren').innerText = getChildrenCount(node.id);
+            document.getElementById('sbDescendants').innerText = getTotalDescendants(node.id);
+            document.getElementById('sbNotes').innerText = node.notes || '-';
+            document.getElementById('sbLineage').innerText = getLineage(node.id);
+
+            const sidebarActions = document.getElementById('sidebarEditorActions');
+            const sbAdminActions = document.getElementById('sidebarAdminActions');
+            
+            if (currentUser) { 
+                sidebarActions.style.display = 'flex'; 
+                document.getElementById('sbEditBtn').onclick = () => openNodeForm(node.id); 
+                
+                if (currentUser.role === 'admin') {
+                    sbAdminActions.style.display = 'flex';
+                    document.getElementById('sbAddChildBtn').onclick = () => { openNodeForm(null); document.getElementById('nodeFather').value = node.id; };
+                    document.getElementById('sbDeleteBtn').onclick = () => deleteNodeAction(node.id);
+                    document.getElementById('sbSelectDescendantsBtn').onclick = () => selectAllDescendants(node.id);
+                } else {
+                    sbAdminActions.style.display = 'none';
+                }
+            } else { 
+                sidebarActions.style.display = 'none'; 
+                sbAdminActions.style.display = 'none'; 
+            }
+
+            if(multiSelectedIds.size <= 1 && !multiSelectedIds.has(node.id)) {
+                multiSelectedIds.clear();
+                multiSelectedIds.add(node.id);
+                renderTree(); 
+            }
+            document.getElementById('detailsSidebar').classList.add('active');
+        }
+
+        function closeSidebar() { 
+            document.getElementById('detailsSidebar').classList.remove('active'); 
+            multiSelectedIds.clear(); 
+            currentSidebarNodeId = null;
+            renderTree(); 
+        }
+
+        function selectAllDescendants(rootId) {
+            if(currentUser?.role !== 'admin') return;
+            multiSelectedIds.clear();
+            let toProcess = [rootId];
+            while (toProcess.length > 0) {
+                const currentId = toProcess.pop();
+                multiSelectedIds.add(currentId);
+                const children = nodesData.filter(n => n.fatherId === currentId).map(n => n.id);
+                toProcess.push(...children);
+            }
+            renderTree();
+            showToast(`تم تحديد ${multiSelectedIds.size} شخص (جاهزين للسحب والتحريك معا)`);
+        }
+
+        // ==========================================
+        // 4. المحرك السريع للرسم (String-Based SVG)
+        // ==========================================
+        function fitToView() {
+            if (nodesData.length === 0) return;
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            nodesData.forEach(n => {
+                const x = n.manualX || 0, y = n.manualY || 0;
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
+            });
+            const w = Math.max(maxX - minX, 500), h = Math.max(maxY - minY, 500);
+            view.scale = Math.max(0.05, Math.min((window.innerWidth - 100) / w, (window.innerHeight - 100) / h, 1));
+            view.x = (window.innerWidth / 2) - ((minX + maxX) / 2) * view.scale;
+            view.y = (window.innerHeight / 2) - ((minY + maxY) / 2) * view.scale;
+            updateTransform();
+        }
+
+        function centerOnNode(nodeId) {
+            const node = nodesData.find(n => n.id === nodeId);
+            if (!node) return;
+            view.scale = 1.3; 
+            view.x = (window.innerWidth / 2) - ((node.manualX || 0) * view.scale);
+            view.y = (window.innerHeight / 2) - ((node.manualY || 0) * view.scale);
+            updateTransform();
+        }
+
+        function loadData() { nodesData = DB.getNodes(); renderTree(); }
+
+        function renderTree() {
+            let edgesHTML = "";
+            let nodesHTML = "";
+
+            // رسم الخطوط
+            nodesData.forEach(node => {
+                if (node.fatherId) {
+                    const father = nodesData.find(n => n.id === node.fatherId);
+                    if (father) {
+                        const fx = father.manualX || 0, fy = father.manualY || 0;
+                        const nx = node.manualX || 0, ny = node.manualY || 0;
+                        const my = (fy + ny) / 2;
+                        let d = "";
+                        if (appSettings.lineStyle === 'straight') d = `M ${fx} ${fy} L ${nx} ${ny}`;
+                        else if (appSettings.lineStyle === 'step') d = `M ${fx} ${fy} L ${fx} ${my} L ${nx} ${my} L ${nx} ${ny}`;
+                        else d = `M ${fx} ${fy} C ${fx} ${my}, ${nx} ${my}, ${nx} ${ny}`;
+                        
+                        edgesHTML += `<path d="${d}" class="edge-line" />`;
+                    }
+                }
+            });
+
+            // رسم الخلايا
+            nodesData.forEach(node => {
+                const scale = node.nodeScale || 1;
+                const finalFontSize = node.fontSize || appSettings.baseFontSize;
+                
+                const nameStr = node.name || "بدون اسم";
+                const w = Math.max(60, nameStr.length * finalFontSize * 0.65 + 16) * scale;
+                const h = (finalFontSize * 1.5 + 10) * scale;
+                
+                const isFemale = node.gender === 'أنثى';
+                const shapeType = isFemale ? appSettings.femaleShape : appSettings.maleShape;
+                const color = node.leafColor || (isFemale ? '#fcd9d9' : '#add7a0');
+                
+                let shapeHTML = "";
+                if (shapeType === 'ellipse') {
+                    shapeHTML = `<ellipse cx="0" cy="0" rx="${w/2}" ry="${h/2}" fill="${color}" class="node-shape glass" />`;
+                } else if (shapeType === 'pill') {
+                    shapeHTML = `<rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="${h/2}" fill="${color}" class="node-shape glass" />`;
+                } else {
+                    shapeHTML = `<rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" rx="${8*scale}" fill="${color}" class="node-shape glass" />`;
+                }
+                
+                let classes = 'node-group';
+                if (currentUser?.role === 'admin') classes += ' admin-drag';
+                if (multiSelectedIds.has(node.id)) {
+                    classes += (node.id === currentSidebarNodeId) ? ' selected' : ' descendant-selected';
+                }
+                
+                nodesHTML += `<g transform="translate(${node.manualX || 0}, ${node.manualY || 0})" class="${classes}" data-id="${node.id}" data-name="${node.name || ''}">
+                    ${shapeHTML}
+                    <text class="node-text" font-size="${finalFontSize * scale}px">${nameStr}</text>
+                </g>`;
+            });
+            
+            edgesGroup.innerHTML = edgesHTML;
+            nodesGroup.innerHTML = nodesHTML;
+            updateTransform();
+        }
+
+        function updateTransform() { transformGroup.setAttribute('transform', `translate(${view.x}, ${view.y}) scale(${view.scale})`); }
+
+        // ==========================================
+        // 5. الأحداث المجمعة (Event Delegation)
+        // ==========================================
+        let isDraggingCanvas = false, startPan = {x:0, y:0};
+        let isDraggingNode = false, dragNodes = [], dragStartPt = {x:0, y:0};
+        let dragStartTime = 0;
+
+        svgCanvas.addEventListener('pointerdown', e => {
+            const nodeGroup = e.target.closest('.node-group');
+            dragStartTime = Date.now();
+            dragStartPt = {x: e.clientX, y: e.clientY};
+
+            if (nodeGroup && currentUser?.role === 'admin') {
+                e.stopPropagation();
+                const id = nodeGroup.dataset.id;
+                if(!multiSelectedIds.has(id)) {
+                    if(!e.ctrlKey) multiSelectedIds.clear();
+                    multiSelectedIds.add(id);
+                    showSidebarDetails(id); 
+                }
+                
+                isDraggingNode = true;
+                const pt = svgCanvas.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+                const ctmPt = pt.matrixTransform(transformGroup.getScreenCTM().inverse());
+                
+                dragNodes = Array.from(multiSelectedIds).map(nId => {
+                    const n = nodesData.find(x => x.id === nId);
+                    return { id: nId, startX: n.manualX || 0, startY: n.manualY || 0, cx: ctmPt.x, cy: ctmPt.y };
+                });
+                
+                svgCanvas.setPointerCapture(e.pointerId);
+                return;
+            }
+            
+            isDraggingCanvas = true;
+            startPan = {x: e.clientX - view.x, y: e.clientY - view.y};
+            svgCanvas.setPointerCapture(e.pointerId);
+        });
+
+        svgCanvas.addEventListener('pointermove', e => {
+            if (isDraggingNode && dragNodes.length > 0) {
+                const pt = svgCanvas.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+                const currentPt = pt.matrixTransform(transformGroup.getScreenCTM().inverse());
+                
+                dragNodes.forEach(dn => {
+                    const n = nodesData.find(x => x.id === dn.id);
+                    if(n) { 
+                        const dx = currentPt.x - dn.cx;
+                        const dy = currentPt.y - dn.cy;
+                        n.manualX = dn.startX + dx; 
+                        n.manualY = dn.startY + dy; 
+                        
+                        const el = document.querySelector(`.node-group[data-id="${dn.id}"]`);
+                        if(el) el.setAttribute('transform', `translate(${n.manualX}, ${n.manualY})`);
+                    }
+                });
+            } else if (isDraggingCanvas) { 
+                view.x = e.clientX - startPan.x; view.y = e.clientY - startPan.y; updateTransform(); 
+            }
+        });
+
+        svgCanvas.addEventListener('pointerup', e => {
+            const dist = Math.hypot(e.clientX - dragStartPt.x, e.clientY - dragStartPt.y);
+            const time = Date.now() - dragStartTime;
+
+            if (isDraggingNode && dragNodes.length > 0) {
+                dragNodes.forEach(dn => { DB.saveNode(nodesData.find(n => n.id === dn.id)); });
+                isDraggingNode = false; dragNodes = [];
+                renderTree(); 
+            }
+            
+            isDraggingCanvas = false;
+            svgCanvas.releasePointerCapture(e.pointerId);
+
+            if (dist < 5 && time < 400) {
+                const nodeGroup = e.target.closest('.node-group');
+                if (nodeGroup) {
+                    showSidebarDetails(nodeGroup.dataset.id);
+                } else {
+                    closeSidebar();
+                }
+            }
+        });
+
+        svgCanvas.addEventListener('dblclick', e => {
+            const nodeGroup = e.target.closest('.node-group');
+            if (nodeGroup && currentUser) {
+                openNodeForm(nodeGroup.dataset.id);
+            }
+        });
+
+        svgCanvas.addEventListener('wheel', e => { e.preventDefault(); const xs=(e.clientX-view.x)/view.scale, ys=(e.clientY-view.y)/view.scale; view.scale*=e.deltaY>0?0.9:1.1; view.x=e.clientX-xs*view.scale; view.y=e.clientY-ys*view.scale; updateTransform(); });
+        document.getElementById('zoomIn').onclick = () => { view.scale*=1.2; updateTransform();}; document.getElementById('zoomOut').onclick = () => { view.scale*=0.8; updateTransform();};
+        document.getElementById('fitView').onclick = fitToView;
+
+        // ==========================================
+        // 6. البحث المتطور
+        // ==========================================
+        const searchInput = document.getElementById('searchInput');
+        const searchNav = document.getElementById('searchNav');
+        const searchCountBadge = document.getElementById('searchCountBadge');
+
+        function updateSearchUI() {
+            document.querySelectorAll('.node-group').forEach(el => el.classList.remove('highlight'));
+            if (searchMatches.length > 0) {
+                searchNav.style.display = 'flex';
+                searchCountBadge.innerText = `${currentSearchIndex + 1} / ${searchMatches.length}`;
+                const targetId = searchMatches[currentSearchIndex];
+                const targetNode = document.querySelector(`.node-group[data-id="${targetId}"]`);
+                if(targetNode) targetNode.classList.add('highlight');
+                centerOnNode(targetId);
+                showSidebarDetails(targetId);
+            } else {
+                searchNav.style.display = 'none';
+            }
+        }
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const val = e.target.value.trim();
+                searchMatches = [];
+                currentSearchIndex = 0;
+                if (val) {
+                    nodesData.forEach(n => {
+                        // تطابق دقيق
+                        if (n.name === val || n.name.includes(val)) searchMatches.push(n.id);
+                    });
+                }
+                if(searchMatches.length > 0) {
+                    showToast(`تم العثور على ${searchMatches.length} نتائج`);
+                } else if(val) {
+                    showToast("لم يتم العثور على أي نتائج مطابقة!");
+                }
+                updateSearchUI();
+            }
+        });
+
+        document.getElementById('nextSearch').onclick = () => { if(searchMatches.length) { currentSearchIndex = (currentSearchIndex + 1) % searchMatches.length; updateSearchUI(); }};
+        document.getElementById('prevSearch').onclick = () => { if(searchMatches.length) { currentSearchIndex = (currentSearchIndex - 1 + searchMatches.length) % searchMatches.length; updateSearchUI(); }};
+
+        // ==========================================
+        // 7. الإضافة والتعديل والطلبات
+        // ==========================================
+        document.getElementById('addNodeBtn').onclick = () => { openNodeForm(null); };
+
+        function openNodeForm(id) {
+            const sel = document.getElementById('nodeFather');
+            sel.innerHTML = '<option value="">-- بدون أب (أصل جديد) --</option>';
+            nodesData.forEach(n => { if (n.id !== id) sel.innerHTML += `<option value="${n.id}">${n.name}</option>`; });
+            
+            document.getElementById('nodeForm').reset();
+            const delBtn = document.getElementById('deleteNodeBtn');
+            
+            if (id) {
+                const node = nodesData.find(n => n.id === id);
+                document.getElementById('nodeId').value = node.id;
+                document.getElementById('nodeName').value = node.name || '';
+                document.getElementById('nodeGender').value = node.gender || 'ذكر';
+                document.getElementById('nodeBranch').value = node.branch || '';
+                document.getElementById('nodeFather').value = node.fatherId || '';
+                document.getElementById('nodeBirth').value = node.birthDate || '';
+                document.getElementById('nodeDeath').value = node.deathDate || '';
+                document.getElementById('nodeNotes').value = node.notes || '';
+                document.getElementById('nodeColor').value = node.leafColor || (node.gender === 'أنثى' ? '#fcd9d9' : '#add7a0');
+                document.getElementById('nodeScale').value = node.nodeScale || 1;
+                document.getElementById('nodeModalTitle').innerText = "تعديل / حذف شخص";
+                delBtn.style.display = 'flex';
+            } else {
+                document.getElementById('nodeId').value = '';
+                document.getElementById('nodeModalTitle').innerText = "إضافة شخص جديد";
+                delBtn.style.display = 'none';
+            }
+            openModal('nodeModal');
+        }
+
+        document.getElementById('nodeForm').onsubmit = (e) => {
+            e.preventDefault();
+            const id = document.getElementById('nodeId').value;
+            const fatherId = document.getElementById('nodeFather').value;
+            let defX = 0, defY = 0;
+            if (fatherId) { const f = nodesData.find(n => n.id === fatherId); if(f) { defX = f.manualX || 0; defY = (f.manualY || 0) + 120; } }
+
+            const nodeData = {
+                id: id || `p_${Date.now()}`,
+                name: document.getElementById('nodeName').value.trim(),
+                gender: document.getElementById('nodeGender').value,
+                branch: document.getElementById('nodeBranch').value.trim(),
+                fatherId: fatherId,
+                birthDate: document.getElementById('nodeBirth').value,
+                deathDate: document.getElementById('nodeDeath').value,
+                notes: document.getElementById('nodeNotes').value.trim(),
+                leafColor: document.getElementById('nodeColor').value,
+                nodeScale: parseFloat(document.getElementById('nodeScale').value) || 1,
+                manualX: id ? nodesData.find(n=>n.id===id)?.manualX : defX,
+                manualY: id ? nodesData.find(n=>n.id===id)?.manualY : defY
+            };
+
+            const existingNode = nodesData.find(n=>n.id===id);
+            if(existingNode && existingNode.fontSize) nodeData.fontSize = existingNode.fontSize;
+
+            if (currentUser.role === 'admin') {
+                DB.saveNode(nodeData); loadData(); showToast("✅ تم الحفظ بنجاح"); showSidebarDetails(nodeData.id);
+            } else {
+                DB.addRequest({ type: id ? 'edit' : 'add', data: nodeData, by: currentUser.username });
+                showToast("⏳ تم إرسال الطلب للمسؤول للموافقة");
+            }
+            closeModal('nodeModal');
+        };
+
+        function deleteNodeAction(id) {
+            if (currentUser.role === 'admin') {
+                if(confirm('هل أنت متأكد من الحذف النهائي؟')) { DB.deleteNode(id); loadData(); closeModal('nodeModal'); closeSidebar(); showToast("🗑️ تم الحذف"); }
+            } else {
+                DB.addRequest({ type: 'delete', targetId: id, by: currentUser.username });
+                closeModal('nodeModal'); showToast("⏳ تم إرسال طلب الحذف");
+            }
+        }
+        
+        // ==========================================
+        // 8. إعدادات الضبط (للأجيال والشكل العام)
+        // ==========================================
+        document.getElementById('settingsBtn').onclick = () => {
+            document.getElementById('bgSelect').value = appSettings.bgStyle;
+            document.getElementById('lineSelect').value = appSettings.lineStyle;
+            document.getElementById('maleShape').value = appSettings.maleShape;
+            document.getElementById('femaleShape').value = appSettings.femaleShape;
+            document.getElementById('baseFontSize').value = appSettings.baseFontSize;
+            
+            if(currentUser) {
+                let maxGen = 1;
+                nodesData.forEach(n => { const g = getGeneration(n.id); if(g > maxGen) maxGen = g; });
+                const genSel = document.getElementById('genSelect');
+                genSel.innerHTML = '';
+                for(let i=1; i<=maxGen; i++) { genSel.innerHTML += `<option value="${i}">الجيل رقم ${i}</option>`; }
+            }
+            openModal('settingsModal');
+        };
+
+        function changeBackground() {
+            const bg = document.getElementById('bgSelect').value;
+            document.getElementById('mainBody').className = bg;
+        }
+
+        function applyGenStyles() {
+            if (!currentUser) return;
+            const targetGen = parseInt(document.getElementById('genSelect').value);
+            const col = document.getElementById('genColor').value;
+            const scale = parseFloat(document.getElementById('genScale').value) || 1;
+            const fontSize = parseFloat(document.getElementById('genFontSize').value) || appSettings.baseFontSize;
+            
+            let count = 0;
+            nodesData.forEach(n => {
+                if (getGeneration(n.id) === targetGen) {
+                    n.leafColor = col;
+                    n.nodeScale = scale;
+                    n.fontSize = fontSize;
+                    count++;
+                }
+            });
+            renderTree(); 
+            showToast(`🎨 تمت المعاينة على ${count} خلية (اضغط حفظ نهائي لتثبيت التغيير)`);
+        }
+
+        function saveAllSettings() {
+            appSettings.bgStyle = document.getElementById('bgSelect').value;
+            appSettings.lineStyle = document.getElementById('lineSelect').value;
+            appSettings.maleShape = document.getElementById('maleShape').value;
+            appSettings.femaleShape = document.getElementById('femaleShape').value;
+            appSettings.baseFontSize = parseFloat(document.getElementById('baseFontSize').value) || 14;
+            
+            DB.saveSettings();
+            
+            if (currentUser?.role === 'admin') {
+                DB.setNodes(nodesData);
+            }
+            
+            renderTree();
+            closeModal('settingsModal');
+            showToast("💾 تم حفظ الإعدادات بنجاح");
+        }
+
+        // ==========================================
+        // 9. لوحة طلبات المسؤول
+        // ==========================================
+        function checkRequests() {
+            if (currentUser?.role !== 'admin') return;
+            const reqs = DB.getRequests(); document.getElementById('reqBadge').innerText = reqs.length > 0 ? `(${reqs.length})` : '';
+        }
+        document.getElementById('adminDashBtn').onclick = () => {
+            const reqs = DB.getRequests(); const list = document.getElementById('requestsList');
+            list.innerHTML = reqs.length === 0 ? '<p style="color:#94a3b8; text-align:center;">لا توجد طلبات معلقة.</p>' : '';
+            reqs.forEach(req => {
+                let desc = req.type === 'add' ? `إضافة: ${req.data.name}` : req.type === 'edit' ? `تعديل: ${req.data.name}` : `حذف شخص`;
+                list.innerHTML += `<div class="req-card glass"><p style="color:var(--accent); font-weight:bold;">${desc}</p><p style="font-size:0.8rem; color:#94a3b8;">بواسطة المشرف: ${req.by}</p><div style="display:flex;gap:10px;margin-top:10px;"><button class="primary" onclick="approveReq('${req.reqId}')">✅ اعتماد</button><button class="danger" onclick="rejectReq('${req.reqId}')">❌ رفض</button></div></div>`;
+            });
+            openModal('adminModal');
+        };
+        window.approveReq = (reqId) => {
+            const req = DB.getRequests().find(r => r.reqId === reqId);
+            if(req) {
+                if (req.type === 'add' || req.type === 'edit') DB.saveNode(req.data); else if (req.type === 'delete') DB.deleteNode(req.targetId);
+                DB.removeRequest(reqId); loadData(); checkRequests(); document.getElementById('adminDashBtn').click(); showToast("✅ تم الاعتماد");
+            }
+        };
+        window.rejectReq = (reqId) => { DB.removeRequest(reqId); checkRequests(); document.getElementById('adminDashBtn').click(); showToast("❌ تم الرفض"); };
+
+        // ==========================================
+        // 10. الاستيراد والتصدير
+        // ==========================================
+        document.getElementById("importFile").addEventListener("change", function(e) {
+            if (currentUser?.role !== 'admin') return;
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                const text = event.target.result;
+                const delimiter = text.includes(';') ? ';' : ',';
+                const lines = text.split('\n');
+                const headers = lines[0].split(delimiter).map(h => h.trim().replace(/["\r]/g, ''));
+                
+                const newData = [];
+                for(let i=1; i<lines.length; i++) {
+                    if(!lines[i].trim()) continue;
+                    const regex = new RegExp(`(?!\\s*$)\\s*(?:'([^'\\\\]*(?:\\\\[\\s\\S][^'\\\\]*)*)'|"([^"\\\\]*(?:\\\\[\\s\\S][^"\\\\]*)*)"|([^${delimiter}\\s\\\\]*(?:\\s+[^${delimiter}\\s\\\\]+)*))\\s*(?:${delimiter}|$)`, 'g');
+                    let match; const row = [];
+                    while ((match = regex.exec(lines[i])) !== null) { row.push(match[1] || match[2] || match[3] || ''); if (match.index === regex.lastIndex) regex.lastIndex++; }
+                    
+                    let obj = {};
+                    headers.forEach((h, index) => { obj[h] = row[index] ? row[index].trim() : ""; });
+                    
+                    if(obj.name || obj['الاسم']) {
+                        newData.push({
+                            id: obj.id || `imp_${Date.now()}_${i}`,
+                            name: obj.name || obj['الاسم'] || "",
+                            gender: obj.gender || "ذكر",
+                            fatherId: obj.fatherId || "",
+                            branch: obj.branch || "",
+                            birthDate: obj.birthDate || "",
+                            deathDate: obj.deathDate || "",
+                            notes: obj.notes || "",
+                            leafColor: obj.leafColor || "",
+                            nodeScale: parseFloat(obj.nodeScale) || 1,
+                            fontSize: parseFloat(obj.fontSize) || appSettings.baseFontSize,
+                            manualX: parseFloat(obj.manualX || obj.X || obj.x) || (Math.random() * 500),
+                            manualY: parseFloat(obj.manualY || obj.Y || obj.y) || (Math.random() * 500)
+                        });
+                    }
+                }
+                
+                if (confirm(`تم العثور على ${newData.length} سجل في الملف. استبدال الشجرة بالكامل؟ (اختر 'إلغاء' للدمج)`)) {
+                    DB.setNodes(newData);
+                } else {
+                    DB.setNodes([...nodesData, ...newData]);
+                }
+                loadData(); fitToView(); showToast(`✅ تم الاستيراد بنجاح`);
+            };
+            reader.readAsText(file, 'UTF-8'); 
+            e.target.value = "";
+        });
+
+        document.getElementById("exportCsvBtn").onclick = () => {
+            const cols = ["id", "name", "gender", "fatherId", "branch", "birthDate", "deathDate", "notes", "leafColor", "nodeScale", "fontSize", "manualX", "manualY"];
+            const csv = "\uFEFF" + cols.join(",") + "\n" + nodesData.map(n => cols.map(c => `"${String(n[c] ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+            const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })); a.download = "family_tree.csv"; a.click(); showToast("تم تصدير CSV");
+        };
+        document.getElementById("exportJsonBtn").onclick = () => {
+            const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(nodesData, null, 2)], { type: "application/json;charset=utf-8" })); a.download = "family_tree_backup.json"; a.click(); showToast("📄 تم تصدير نسخة JSON");
+        };
+
+        document.getElementById("printBtn").onclick = () => window.print();
+
+        window.onload = () => { updateAuthUI(); setTimeout(fitToView, 200); };
+    </script>
+</body>
+</html>
